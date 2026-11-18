@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200"><rect width="360" height="200" fill="#FFF4D6"/>
+<rect x="70" y="30" width="220" height="150" rx="6" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="3"/>
+<text x="180" y="58" text-anchor="middle" font-family="Georgia, serif" font-size="20" font-weight="700" fill="#1B1B1B">THE DAILY WOW</text>
+<line x1="85" y1="68" x2="275" y2="68" stroke="#1B1B1B" stroke-width="2"/>
+<rect x="85" y="78" width="110" height="10" fill="#1B1B1B"/><rect x="85" y="96" width="80" height="50" fill="#D9D9D9"/>
+<rect x="175" y="96" width="20" height="6" fill="#BDBDBD"/><rect x="175" y="108" width="20" height="6" fill="#BDBDBD"/><rect x="175" y="120" width="20" height="6" fill="#BDBDBD"/>
+<rect x="210" y="78" width="65" height="6" fill="#BDBDBD"/><rect x="210" y="90" width="65" height="6" fill="#BDBDBD"/><rect x="210" y="102" width="65" height="6" fill="#BDBDBD"/><rect x="210" y="114" width="65" height="6" fill="#BDBDBD"/><rect x="210" y="126" width="50" height="6" fill="#BDBDBD"/>
+<rect x="85" y="156" width="190" height="6" fill="#BDBDBD"/><rect x="85" y="166" width="150" height="6" fill="#BDBDBD"/>
+<ellipse cx="305" cy="168" rx="26" ry="8" fill="#8D6E63"/>
+<path d="M281 140 h48 v24 a24 10 0 0 1 -48 0 z" fill="#FFFFFF" stroke="#1B1B1B" stroke-width="3"/>
+<path d="M329 146 a10 10 0 0 1 0 16" fill="none" stroke="#1B1B1B" stroke-width="3"/>
+<path d="M295 128 q4 -8 0 -16 M307 128 q4 -8 0 -16" fill="none" stroke="#9E9E9E" stroke-width="2"/></svg>
