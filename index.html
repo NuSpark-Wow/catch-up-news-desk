@@ -277,7 +277,50 @@
     return a;
   }
 
-  function fetchNews() {
+  // "Did you mean?" check for cities that share a name (uses Open-Meteo's place lookup, no AI cost)
+  function placeLabel(r) {
+    var parts = [r.name];
+    if (r.admin1 && r.admin1 !== r.name) parts.push(r.admin1);
+    if (r.country_code !== 'US' && r.country) parts.push(r.country);
+    return parts.join(', ');
+  }
+
+  function checkCity(place) {
+    var url = 'https://geocoding-api.open-meteo.com/v1/search?count=20&language=en&format=json&name=' + encodeURIComponent(place);
+    return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+      var seen = {}, list = [];
+      (j.results || []).forEach(function (r) {
+        if (!r.feature_code || r.feature_code.indexOf('PPL') !== 0) return;
+        var label = placeLabel(r);
+        if (seen[label]) return;
+        seen[label] = true;
+        list.push({ label: label, pop: r.population || 0 });
+      });
+      list.sort(function (a, b) { return b.pop - a.pop; });
+      return list.slice(0, 8);
+    }).catch(function () { return []; });
+  }
+
+  function showPicker(place, matches) {
+    var results = document.getElementById('results');
+    results.innerHTML = '';
+    var box = el('div', 'panel');
+    box.appendChild(el('div', 'label', 'Which ' + place + ' do you mean?'));
+    var row = el('div', 'pills');
+    matches.forEach(function (m) {
+      var b = el('button', 'pill', m.label); b.type = 'button';
+      b.addEventListener('click', function () { document.getElementById('place').value = m.label; fetchNews(true); });
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+    var other = el('button', 'btn', 'None of these, search for "' + place + '" anyway'); other.type = 'button';
+    other.style.alignSelf = 'flex-start';
+    other.addEventListener('click', function () { fetchNews(true); });
+    box.appendChild(other);
+    results.appendChild(box);
+  }
+
+  function fetchNews(skipCheck) {
     if (busy) return;
     var results = document.getElementById('results');
     var place = document.getElementById('place').value.trim();
@@ -285,6 +328,26 @@
       results.innerHTML = '';
       results.appendChild(el('div', 'error', 'Please type a ' + (state.level === 'State / Region' ? 'state or region' : state.level.toLowerCase()) + ' first, or pick World.'));
       document.getElementById('place').focus();
+      return;
+    }
+    if (state.level === 'County' && place.indexOf(',') < 0) {
+      results.innerHTML = '';
+      results.appendChild(el('div', 'error', 'Many states share county names, so please add the state after a comma. Example: Washington County, Oregon'));
+      document.getElementById('place').focus();
+      return;
+    }
+    if (state.level === 'City' && skipCheck !== true && place.indexOf(',') < 0) {
+      busy = true;
+      var goBtn = document.getElementById('go'); goBtn.disabled = true;
+      results.innerHTML = '';
+      var chk = el('div', 'loading'); chk.appendChild(el('span', 'spin')); chk.appendChild(el('span', null, 'Checking which ' + place + ' you mean...'));
+      results.appendChild(chk);
+      checkCity(place).then(function (matches) {
+        busy = false; goBtn.disabled = false;
+        if (matches.length > 1) { showPicker(place, matches); return; }
+        if (matches.length === 1) document.getElementById('place').value = matches[0].label;
+        fetchNews(true);
+      });
       return;
     }
     lastPlace = place;
