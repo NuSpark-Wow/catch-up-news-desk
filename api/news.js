@@ -36,7 +36,8 @@ Search the web for current coverage from several reputable outlets, then write $
 
 RULES
 - Only stories from the time window. Only confirmed facts. If outlets disagree or details are unconfirmed, say "reports say" or "officials say".
-- Write everything in your own words, combining several outlets. Never copy sentences from an article. No quotes longer than a few words.
+- Write everything in your own words, combining several outlets. Never copy sentences from an article, including in "latest". No quotes longer than a few words.
+- Plain text only in every field: no citation tags, no <cite> markers, no HTML, no markdown. Put source details only in "sources".
 - Pick the card type per story:
   - "quick" = breaking news, incidents and events (a fire, a strike, an accident, a storm, a single announcement). Give "summary" (one short paragraph, 2-3 sentences) and "latest" (the newest confirmed detail with the time reported). No paragraphs.
   - "full" = bigger stories with real context (decisions, policies, trends, business, science breakthroughs). Give "paragraphs": at least 2, and as many more as the story needs to tell a regular person what they need to know: what happened, why it matters to everyday people, what comes next. No padding, no filler. Optionally "background": a short catch-up for people who missed earlier parts.
@@ -59,24 +60,33 @@ function extractJson(text) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
+// Removes citation markers and any stray HTML the search step can leave behind
+function plain(v) {
+  return String(v || '')
+    .replace(/<\/?cite[^>]*>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function clean(data) {
   const okUrl = u => typeof u === 'string' && /^https?:\/\//i.test(u);
   const stories = (Array.isArray(data.stories) ? data.stories : []).slice(0, 10).map(s => ({
     kind: s.kind === 'full' ? 'full' : 'quick',
     developing: !!s.developing,
-    headline: String(s.headline || '').slice(0, 300),
-    updated: String(s.updated || '').slice(0, 60),
-    summary: String(s.summary || ''),
-    latest: String(s.latest || ''),
-    paragraphs: (Array.isArray(s.paragraphs) ? s.paragraphs : []).map(String).filter(Boolean),
-    background: String(s.background || ''),
+    headline: plain(s.headline).slice(0, 300),
+    updated: plain(s.updated).slice(0, 60),
+    summary: plain(s.summary),
+    latest: plain(s.latest),
+    paragraphs: (Array.isArray(s.paragraphs) ? s.paragraphs : []).map(plain).filter(Boolean),
+    background: plain(s.background),
     coverage: s.coverage && typeof s.coverage === 'object'
-      ? { left: String(s.coverage.left || ''), center: String(s.coverage.center || ''), right: String(s.coverage.right || '') }
+      ? { left: plain(s.coverage.left), center: plain(s.coverage.center), right: plain(s.coverage.right) }
       : null,
     sources: (Array.isArray(s.sources) ? s.sources : []).filter(x => x && okUrl(x.url))
-      .slice(0, 4).map(x => ({ name: String(x.name || 'Source').slice(0, 80), url: x.url }))
+      .slice(0, 4).map(x => ({ name: (plain(x.name) || 'Source').slice(0, 80), url: x.url }))
   })).filter(s => s.headline);
-  return { scope_note: String(data.scope_note || ''), stories };
+  return { scope_note: plain(data.scope_note), stories };
 }
 
 module.exports = async function handler(req, res) {
