@@ -25,6 +25,18 @@ function allowed(req) {
   return list.some(d => refHost === d || refHost.endsWith('.' + d));
 }
 
+// Per-visitor limit: news searches per hour (results everyone shares from the cache don't count)
+const HOURLY_LIMIT = 20;
+const hits = new Map();
+function overLimit(req) {
+  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'x';
+  const now = Date.now(), list = (hits.get(ip) || []).filter(t => now - t < 3600e3);
+  if (list.length >= HOURLY_LIMIT) { hits.set(ip, list); return true; }
+  list.push(now); hits.set(ip, list);
+  if (hits.size > 20000) hits.clear();
+  return false;
+}
+
 function buildPrompt(level, place, time, cat) {
   const now = new Date();
   const since = new Date(now.getTime() - HOURS[time] * 3600 * 1000);
@@ -103,8 +115,10 @@ module.exports = async function handler(req, res) {
 
   if (!process.env.ANTHROPIC_API_KEY) { res.status(500).end(JSON.stringify({ error: 'Missing API key.' })); return; }
 
+  if (overLimit(req)) { res.status(429).end(JSON.stringify({ error: "You've caught up on a lot of news this hour! Please try again in a little while." })); return; }
+
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const call = messages => fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -115,16 +129,30 @@ module.exports = async function handler(req, res) {
         model: process.env.CLAUDE_MODEL || DEFAULT_MODEL,
         max_tokens: 8000,
         tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
-        messages: [{ role: 'user', content: buildPrompt(level, place, time, cat) }]
+        messages
       })
     });
-    const body = await r.json();
-    if (!r.ok) {
-      console.error('Anthropic error', r.status, JSON.stringify(body).slice(0, 500));
-      res.status(502).end(JSON.stringify({ error: 'The newsroom is busy. Please try again in a minute.' }));
-      return;
+    const messages = [{ role: 'user', content: buildPrompt(level, place, time, cat) }];
+    let text = '';
+    for (let round = 0; round < 4; round++) {
+      const r = await call(messages);
+      const body = await r.json();
+      if (!r.ok) {
+        console.error('Anthropic error', r.status, JSON.stringify(body).slice(0, 500));
+        res.status(502).end(JSON.stringify({ error: 'The newsroom is busy. Please try again in a minute.' }));
+        return;
+      }
+      text += (body.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+      // Long searches can pause partway ("pause_turn"): let the AI keep going so the stories aren't lost
+      if (body.stop_reason === 'pause_turn') { messages.push({ role: 'assistant', content: body.content }); continue; }
+      // Finished searching but forgot the stories: ask for just the finished answer
+      if (!extractJson(text) && round === 0) {
+        messages.push({ role: 'assistant', content: body.content });
+        messages.push({ role: 'user', content: 'Thank you. Now reply with ONLY the finished JSON in the exact format requested, using the coverage you already found. Do not search again.' });
+        continue;
+      }
+      break;
     }
-    const text = (body.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
     const data = clean(extractJson(text));
     if (!data.stories.length) {
       res.status(200).end(JSON.stringify({ scope_note: data.scope_note || 'No stories found for that place and time. Try a wider area or a longer time window.', stories: [] }));
