@@ -102,6 +102,7 @@ function clean(data) {
 }
 
 module.exports = async function handler(req, res) {
+  if (!(await require("./_lwgate")(req, res, "catch-up-news-desk"))) return;
   res.setHeader('Content-Type', 'application/json');
   if (req.method !== 'GET') { res.status(405).end(JSON.stringify({ error: 'Use GET' })); return; }
   if (!allowed(req)) { res.status(403).end(JSON.stringify({ error: 'This tool only runs on NuSpark sites.' })); return; }
