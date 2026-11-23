@@ -63,7 +63,8 @@ RULES
 - Pick the card type per story:
   - "quick" = breaking news, incidents and events (a fire, a strike, an accident, a storm, a single announcement). Give "summary" (one short paragraph, 2-3 sentences) and "latest" (the newest confirmed detail with the time reported). No paragraphs.
   - "full" = bigger stories with real context (decisions, policies, trends, business, science breakthroughs). Give "paragraphs": at least 2, and as many more as the story needs to tell a regular person what they need to know: what happened, why it matters to everyday people, what comes next. No padding, no filler. Optionally "background": a short catch-up for people who missed earlier parts.
-- Set "developing": true while a story is still unfolding.
+- Set "developing": true while a story is still unfolding. Developing stories (quick or full) also get "background": a short catch-up for someone who missed everything before today.
+- Every story gets "why_matters": ONE plain sentence (under 25 words) on why this matters to an everyday person, neutral and factual. For a light or feel-good story, say why it's worth knowing.
 - Politics and contested topics: strictly neutral. No opinions, no loaded words, never say who is right. For political stories include "coverage" describing, in one sentence each, how left-leaning, center and right-leaning outlets are framing the story. If you can't find a side's coverage, write "Limited coverage found."
 ${sportsRule(level, time, cat)}- "Wow...Who Knew?" = surprising, odd, delightful or feel-good stories. "Weather & Local Alerts" = forecasts, warnings, closures, safety alerts.
 - If the place is small and there is too little news in the window, widen one level (city to county, county to state, state to country) and explain in "scope_note", e.g. "Not much in the last 24 hours for Doylestown, so here's Bucks County." If the place name is ambiguous, choose the best-known one and mention it in "scope_note". Otherwise "scope_note" is "".
@@ -71,7 +72,7 @@ ${sportsRule(level, time, cat)}- "Wow...Who Knew?" = surprising, odd, delightful
 - 2 to 4 "sources" per story, each with the outlet name and the article URL you actually found.
 
 Reply with ONLY this JSON, nothing before or after:
-{"scope_note":"","stories":[{"kind":"quick","developing":false,"headline":"","updated":"","summary":"","latest":"","paragraphs":[],"background":"","coverage":null,"sources":[{"name":"","url":""}]}]}
+{"scope_note":"","stories":[{"kind":"quick","developing":false,"headline":"","updated":"","why_matters":"","summary":"","latest":"","paragraphs":[],"background":"","coverage":null,"sources":[{"name":"","url":""}]}]}
 For "coverage" on political stories use {"left":"","center":"","right":""}.`;
 }
 
@@ -99,6 +100,7 @@ function clean(data) {
     headline: plain(s.headline).slice(0, 300),
     updated: plain(s.updated).slice(0, 60),
     summary: plain(s.summary),
+    why_matters: plain(s.why_matters).slice(0, 300),
     latest: plain(s.latest),
     paragraphs: (Array.isArray(s.paragraphs) ? s.paragraphs : []).map(plain).filter(Boolean),
     background: plain(s.background),

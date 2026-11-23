@@ -330,6 +330,7 @@
     meta.appendChild(el('span', 'when', whenTxt.trim()));
     a.appendChild(meta);
     a.appendChild(el('h2', null, s.headline));
+    if (s.why_matters) { var wm = el('p', 'latest'); wm.style.marginTop = '4px'; wm.appendChild(el('strong', null, 'Why it matters: ')); wm.appendChild(document.createTextNode(s.why_matters)); a.appendChild(wm); }
 
     var body = el('div', 'body');
     if (s.kind === 'full' && s.paragraphs.length) {
@@ -346,8 +347,8 @@
       }
     }
 
-    if (s.kind === 'full' && s.background) {
-      var det = el('details'); det.appendChild(el('summary', null, 'Background: catch up on this story'));
+    if (s.background) {
+      var det = el('details'); det.appendChild(el('summary', null, s.developing ? 'I missed everything: catch me up' : 'Background: catch up on this story'));
       det.appendChild(el('p', null, s.background)); a.appendChild(det);
     }
 
