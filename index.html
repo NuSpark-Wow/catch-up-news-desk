@@ -146,6 +146,16 @@
   .deeper .hint { color:var(--ink); }
   footer { border-top:4px double var(--ink); padding:16px 0 32px; font-size:13px; line-height:1.6; }
   .sr { position:absolute; left:-9999px; }
+  .actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+  .actions .go { align-self:auto; }
+  .save { min-height:52px; padding:0 22px; border-radius:12px; border:2px solid var(--ink); background:#fff; color:var(--ink); font:700 16px Inter, sans-serif; cursor:pointer; }
+  .saved { background:var(--soft); border:2px solid var(--ink); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .savedrow { display:flex; flex-wrap:wrap; gap:10px; }
+  .sv { display:inline-flex; align-items:stretch; border:2px solid var(--ink); border-radius:999px; background:#fff; overflow:hidden; }
+  .sv button { border:0; background:none; color:var(--ink); font:600 14px Inter, sans-serif; cursor:pointer; min-height:44px; }
+  .sv .run { padding:0 6px 0 16px; text-align:left; }
+  .sv .del { padding:0 14px 0 8px; font-size:18px; color:var(--muted); }
+  .sv .del:hover { color:#C62828; }
 </style>
 <style>
 /* Mr. Paul host at the bottom of the opening screen */
@@ -177,6 +187,11 @@
   </div>
 
   <section class="panel" aria-label="Choose your news">
+    <div class="saved" id="saved" style="display:none">
+      <div class="label">&#11088; Your Saved Searches</div>
+      <div class="hint">Tap one to get the latest news for it. Saved on this device.</div>
+      <div class="savedrow" id="savedRow"></div>
+    </div>
     <div class="step">
       <div class="label">1. Where?</div>
       <div class="pills" id="levels"></div>
@@ -194,7 +209,11 @@
       <div class="label">3. Pick a section</div>
       <div class="tabs" id="cats"></div>
     </div>
-    <button class="go" id="go" type="button">Get the News</button>
+    <div class="actions">
+      <button class="go" id="go" type="button">Get the News</button>
+      <button class="save" id="save" type="button">&#9734; Save This Search</button>
+    </div>
+    <div class="hint" id="saveMsg" aria-live="polite"></div>
   </section>
 
   <section id="results" aria-live="polite"></section>
@@ -459,6 +478,68 @@
       })
       .then(function () { busy = false; go.disabled = false; });
   }
+
+  // Saved searches: kept in this visitor's browser (no login, no cost)
+  var SAVE_KEY = 'cund_saved', MAX_SAVED = 10;
+  function loadSaved() {
+    try { var v = JSON.parse(localStorage.getItem(SAVE_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+  }
+  function storeSaved(list) {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(list)); return true; } catch (e) { return false; }
+  }
+  function timeName(t) { for (var i = 0; i < TIMES.length; i++) if (TIMES[i][0] === t) return TIMES[i][1]; return ''; }
+  function savedLabel(x) {
+    return x.cat + ' \u00b7 ' + (x.level === 'World' ? 'World' : x.place) + ' \u00b7 ' + timeName(x.time);
+  }
+  function sameSearch(a, b) {
+    return a.level === b.level && a.time === b.time && a.cat === b.cat && (a.place || '').toLowerCase() === (b.place || '').toLowerCase();
+  }
+  function renderSaved() {
+    var list = loadSaved(), box = document.getElementById('saved'), row = document.getElementById('savedRow');
+    row.innerHTML = '';
+    box.style.display = list.length ? '' : 'none';
+    list.forEach(function (x, i) {
+      var chip = el('span', 'sv');
+      var run = el('button', 'run', savedLabel(x)); run.type = 'button';
+      run.addEventListener('click', function () { useSaved(x); });
+      var del = el('button', 'del', '\u00d7'); del.type = 'button';
+      del.setAttribute('aria-label', 'Remove saved search: ' + savedLabel(x));
+      del.addEventListener('click', function () {
+        var l = loadSaved(); l.splice(i, 1); storeSaved(l); renderSaved();
+        document.getElementById('saveMsg').textContent = 'Removed.';
+      });
+      chip.appendChild(run); chip.appendChild(del); row.appendChild(chip);
+    });
+  }
+  function useSaved(x) {
+    if (busy) return;
+    state.level = LEVELS.indexOf(x.level) >= 0 ? x.level : 'World';
+    state.time = timeName(x.time) ? x.time : '24h';
+    state.cat = catColor(x.cat) && CATS.some(function (c) { return c[0] === x.cat; }) ? x.cat : 'General Highlights';
+    document.getElementById('place').value = x.place || '';
+    buildPills('levels', LEVELS, 'level', 'pill');
+    buildPills('times', TIMES, 'time', 'pill');
+    buildPills('cats', CATS, 'cat', 'tab');
+    updatePlace();
+    document.getElementById('saveMsg').textContent = '';
+    fetchNews(true);
+  }
+  function saveSearch() {
+    var msg = document.getElementById('saveMsg');
+    var place = document.getElementById('place').value.trim();
+    if (state.level !== 'World' && !place) { msg.textContent = 'Type a place first, then save.'; return; }
+    var item = { level: state.level, time: state.time, cat: state.cat, place: state.level === 'World' ? '' : place };
+    var list = loadSaved();
+    if (list.some(function (x) { return sameSearch(x, item); })) { msg.textContent = 'That search is already saved.'; return; }
+    list.unshift(item);
+    if (list.length > MAX_SAVED) list = list.slice(0, MAX_SAVED);
+    if (!storeSaved(list)) { msg.textContent = 'This browser won\'t let us save. Try turning off private browsing.'; return; }
+    renderSaved();
+    msg.textContent = 'Saved! It\'s at the top of the tool next time you visit.';
+  }
+  document.getElementById('save').addEventListener('click', saveSearch);
+  renderSaved();
 
   buildPills('levels', LEVELS, 'level', 'pill');
   buildPills('times', TIMES, 'time', 'pill');
