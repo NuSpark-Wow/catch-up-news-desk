@@ -37,6 +37,16 @@ function overLimit(req) {
   return false;
 }
 
+// Sports for a whole country (like USA) or the World: the big stories, not routine game recaps
+function sportsRule(level, time, cat) {
+  if (cat !== 'Sports' || (level !== 'World' && level !== 'Country')) return '';
+  const strict = time === '7d'
+    ? ' This is a 7-day window, so be extra strict: only the biggest sports stories of the week.'
+    : '';
+  return `- SPORTS AT NATIONAL/WORLD LEVEL: Do NOT write routine game recaps or scores. Cover the big sports news instead: trades, signings and free agency, coach and manager hirings and firings, Hall of Fame news, records broken, retirements, major injuries, league decisions and rule changes, suspensions and scandals, notable deaths, and stadium or franchise news. Include a game ONLY if it is truly newsworthy: a championship or title game, a historic upset, or a record-setting performance.${strict} Cover a mix of sports, not just one league.
+`;
+}
+
 function buildPrompt(level, place, time, cat) {
   const now = new Date();
   const since = new Date(now.getTime() - HOURS[time] * 3600 * 1000);
@@ -55,7 +65,7 @@ RULES
   - "full" = bigger stories with real context (decisions, policies, trends, business, science breakthroughs). Give "paragraphs": at least 2, and as many more as the story needs to tell a regular person what they need to know: what happened, why it matters to everyday people, what comes next. No padding, no filler. Optionally "background": a short catch-up for people who missed earlier parts.
 - Set "developing": true while a story is still unfolding.
 - Politics and contested topics: strictly neutral. No opinions, no loaded words, never say who is right. For political stories include "coverage" describing, in one sentence each, how left-leaning, center and right-leaning outlets are framing the story. If you can't find a side's coverage, write "Limited coverage found."
-- "Wow...Who Knew?" = surprising, odd, delightful or feel-good stories. "Weather & Local Alerts" = forecasts, warnings, closures, safety alerts.
+${sportsRule(level, time, cat)}- "Wow...Who Knew?" = surprising, odd, delightful or feel-good stories. "Weather & Local Alerts" = forecasts, warnings, closures, safety alerts.
 - If the place is small and there is too little news in the window, widen one level (city to county, county to state, state to country) and explain in "scope_note", e.g. "Not much in the last 24 hours for Doylestown, so here's Bucks County." If the place name is ambiguous, choose the best-known one and mention it in "scope_note". Otherwise "scope_note" is "".
 - "updated" = when the latest report came out, short form like "Nov 18, 6:10 AM ET".
 - 2 to 4 "sources" per story, each with the outlet name and the article URL you actually found.
